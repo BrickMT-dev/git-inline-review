@@ -1,0 +1,441 @@
+{
+  "name": "git-inline-review",
+  "displayName": "Git Inline Review",
+  "description": "在檔案內逐段審閱未暫存的 git 變更：Keep = git add，Undo = 還原。",
+  "version": "0.9.2",
+  "publisher": "local",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BrickMT-dev/git-inline-review.git"
+  },
+  "homepage": "https://github.com/BrickMT-dev/git-inline-review#readme",
+  "bugs": {
+    "url": "https://github.com/BrickMT-dev/git-inline-review/issues"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "SCM Providers",
+    "Other"
+  ],
+  "main": "./out/src/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "inlineGitReview.keepHunk",
+        "title": "Keep（git add 這段變更）",
+        "category": "Inline Review",
+        "icon": "$(check)"
+      },
+      {
+        "command": "inlineGitReview.undoHunk",
+        "title": "Undo（還原這段變更）",
+        "category": "Inline Review",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "inlineGitReview.keepFile",
+        "title": "Keep File（git add 整個檔案）",
+        "category": "Inline Review",
+        "icon": "$(check-all)"
+      },
+      {
+        "command": "inlineGitReview.undoFile",
+        "title": "Undo File（還原整個檔案）",
+        "category": "Inline Review",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "inlineGitReview.nextHunk",
+        "title": "下一段變更",
+        "category": "Inline Review",
+        "icon": "$(chevron-down)"
+      },
+      {
+        "command": "inlineGitReview.prevHunk",
+        "title": "上一段變更",
+        "category": "Inline Review",
+        "icon": "$(chevron-up)"
+      },
+      {
+        "command": "inlineGitReview.nextFile",
+        "title": "下一個待檢查的檔案",
+        "category": "Inline Review",
+        "icon": "$(chevron-right)"
+      },
+      {
+        "command": "inlineGitReview.prevFile",
+        "title": "上一個待檢查的檔案",
+        "category": "Inline Review",
+        "icon": "$(chevron-left)"
+      },
+      {
+        "command": "inlineGitReview.openDiff",
+        "title": "開啟 Index 對照 Diff",
+        "category": "Inline Review",
+        "icon": "$(diff)"
+      },
+      {
+        "command": "inlineGitReview.toggle",
+        "title": "開關行內變更顯示",
+        "category": "Inline Review"
+      },
+      {
+        "command": "inlineGitReview.refresh",
+        "title": "重新整理",
+        "category": "Inline Review"
+      },
+      {
+        "command": "inlineGitReview.undoLastReview",
+        "title": "復原上一個 Keep / Undo（重新審查）",
+        "category": "Inline Review",
+        "icon": "$(history)"
+      },
+      {
+        "command": "inlineGitReview.bar.prevHunk",
+        "title": "上一段變更 (⌥[)",
+        "category": "Inline Review",
+        "icon": "$(chevron-up)"
+      },
+      {
+        "command": "inlineGitReview.bar.nextHunk",
+        "title": "下一段變更 (⌥])",
+        "category": "Inline Review",
+        "icon": "$(chevron-down)"
+      },
+      {
+        "command": "inlineGitReview.bar.prevFile",
+        "title": "上一個待檢查的檔案 (⌥⇧[)",
+        "category": "Inline Review",
+        "icon": "$(chevron-left)"
+      },
+      {
+        "command": "inlineGitReview.bar.nextFile",
+        "title": "下一個待檢查的檔案 (⌥⇧])",
+        "category": "Inline Review",
+        "icon": "$(chevron-right)"
+      },
+      {
+        "command": "inlineGitReview.bar.undoFile",
+        "title": "Undo File",
+        "category": "Inline Review"
+      },
+      {
+        "command": "inlineGitReview.bar.keepFile",
+        "title": "Keep File",
+        "category": "Inline Review"
+      },
+      {
+        "command": "inlineGitReview.pickFile",
+        "title": "列出待檢查的檔案",
+        "category": "Inline Review"
+      },
+      {
+        "command": "inlineGitReview.rebuildBaselines",
+        "title": "以目前內容重設 git 管不到的檔案基準",
+        "category": "Inline Review"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "inlineGitReview.bar.prevHunk",
+          "when": "inlineGitReview.hasHunks",
+          "group": "navigation@100001"
+        },
+        {
+          "command": "inlineGitReview.bar.nextHunk",
+          "when": "inlineGitReview.hasHunks",
+          "group": "navigation@100002"
+        },
+        {
+          "command": "inlineGitReview.bar.prevFile",
+          "when": "inlineGitReview.hasOtherFiles",
+          "group": "navigation@100003"
+        },
+        {
+          "command": "inlineGitReview.bar.nextFile",
+          "when": "inlineGitReview.hasOtherFiles",
+          "group": "navigation@100005"
+        },
+        {
+          "command": "inlineGitReview.bar.undoFile",
+          "when": "inlineGitReview.hasHunks",
+          "group": "navigation@100006"
+        },
+        {
+          "command": "inlineGitReview.bar.keepFile",
+          "when": "inlineGitReview.hasHunks",
+          "group": "navigation@100007"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "inlineGitReview.keepHunk",
+          "when": "inlineGitReview.cursorInHunk"
+        },
+        {
+          "command": "inlineGitReview.undoHunk",
+          "when": "inlineGitReview.cursorInHunk"
+        },
+        {
+          "command": "inlineGitReview.keepFile",
+          "when": "inlineGitReview.hasHunks"
+        },
+        {
+          "command": "inlineGitReview.undoFile",
+          "when": "inlineGitReview.hasHunks"
+        },
+        {
+          "command": "inlineGitReview.bar.prevHunk",
+          "when": "false"
+        },
+        {
+          "command": "inlineGitReview.bar.nextHunk",
+          "when": "false"
+        },
+        {
+          "command": "inlineGitReview.bar.prevFile",
+          "when": "false"
+        },
+        {
+          "command": "inlineGitReview.bar.nextFile",
+          "when": "false"
+        },
+        {
+          "command": "inlineGitReview.bar.undoFile",
+          "when": "false"
+        },
+        {
+          "command": "inlineGitReview.bar.keepFile",
+          "when": "false"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "inlineGitReview.keepHunk",
+        "key": "ctrl+alt+y",
+        "mac": "cmd+y",
+        "when": "editorTextFocus && inlineGitReview.cursorInHunk"
+      },
+      {
+        "command": "inlineGitReview.undoHunk",
+        "key": "ctrl+alt+n",
+        "mac": "cmd+n",
+        "when": "editorTextFocus && inlineGitReview.cursorInHunk"
+      },
+      {
+        "command": "inlineGitReview.keepFile",
+        "key": "ctrl+alt+shift+y",
+        "mac": "cmd+alt+y",
+        "when": "editorTextFocus && inlineGitReview.hasHunks"
+      },
+      {
+        "command": "inlineGitReview.undoFile",
+        "key": "ctrl+alt+shift+n",
+        "mac": "cmd+alt+n",
+        "when": "editorTextFocus && inlineGitReview.hasHunks"
+      },
+      {
+        "command": "inlineGitReview.nextHunk",
+        "key": "alt+]",
+        "when": "editorTextFocus && inlineGitReview.hasHunks"
+      },
+      {
+        "command": "inlineGitReview.prevHunk",
+        "key": "alt+[",
+        "when": "editorTextFocus && inlineGitReview.hasHunks"
+      },
+      {
+        "command": "inlineGitReview.nextFile",
+        "key": "alt+shift+]",
+        "when": "editorTextFocus && inlineGitReview.hasOtherFiles"
+      },
+      {
+        "command": "inlineGitReview.prevFile",
+        "key": "alt+shift+[",
+        "when": "editorTextFocus && inlineGitReview.hasOtherFiles"
+      },
+      {
+        "command": "inlineGitReview.undoLastReview",
+        "key": "ctrl+z",
+        "mac": "cmd+z",
+        "when": "editorTextFocus && !editorReadonly && inlineGitReview.canUndoReview",
+        "args": {
+          "fromKeybinding": true
+        }
+      }
+    ],
+    "configuration": {
+      "title": "Git Inline Review",
+      "properties": {
+        "inlineGitReview.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "在檔案內顯示未暫存（相對於 git index）的變更。"
+        },
+        "inlineGitReview.showUntracked": {
+          "type": "boolean",
+          "default": true,
+          "description": "未被 git 追蹤的新檔案也整份標示為新增。"
+        },
+        "inlineGitReview.showCodeLens": {
+          "type": "boolean",
+          "default": true,
+          "description": "經典樣式下，在每段變更上方顯示 Keep / Undo 的 CodeLens。"
+        },
+        "inlineGitReview.saveAfterAction": {
+          "type": "boolean",
+          "default": true,
+          "description": "Keep / Undo 後自動存檔，讓磁碟上的檔案與暫存區一致。"
+        },
+        "inlineGitReview.autoNextFile": {
+          "type": "boolean",
+          "default": true,
+          "description": "一個檔案的變更全部 Keep / Undo 完後，自動跳到下一個待檢查的檔案。"
+        },
+        "inlineGitReview.useInsets": {
+          "type": "boolean",
+          "default": false,
+          "description": "改用彩色嵌入區塊：鮮豔的 Keep / Undo 按鈕 + 紅色整行顯示被刪除的內容（需要啟用 editorInsets proposed API，見 README）。預設為經典 CodeLens 樣式。"
+        },
+        "inlineGitReview.trackIgnoredFiles": {
+          "type": "boolean",
+          "default": true,
+          "description": "被 git 排除（.gitignore）或不在 git repo 裡的檔案，改用擴充自己保存的快照當基準，一樣可以 Keep / Undo（快照不會寫進專案）。"
+        },
+        "inlineGitReview.indexOnOpen": {
+          "type": "boolean",
+          "default": true,
+          "description": "開專案時就替 git 管不到、且副檔名符合 indexExtensions 的檔案建立基準。關閉則只在第一次開啟檔案時建立。"
+        },
+        "inlineGitReview.indexExtensions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "開專案時要建立基準的副檔名（不含點）：可能需要人工檢查的程式碼與設定檔。",
+          "default": [
+            "ts",
+            "tsx",
+            "js",
+            "jsx",
+            "mjs",
+            "cjs",
+            "vue",
+            "svelte",
+            "html",
+            "css",
+            "scss",
+            "less",
+            "json",
+            "jsonc",
+            "yaml",
+            "yml",
+            "toml",
+            "ini",
+            "cfg",
+            "conf",
+            "properties",
+            "xml",
+            "plist",
+            "gradle",
+            "kts",
+            "kt",
+            "java",
+            "swift",
+            "m",
+            "mm",
+            "h",
+            "c",
+            "cc",
+            "cpp",
+            "hpp",
+            "cs",
+            "go",
+            "rs",
+            "py",
+            "rb",
+            "php",
+            "dart",
+            "sh",
+            "bash",
+            "zsh",
+            "sql",
+            "graphql",
+            "proto",
+            "md",
+            "txt"
+          ]
+        },
+        "inlineGitReview.indexExcludeFolders": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "建立基準時略過的資料夾名稱（產生出來的檔案、套件）。",
+          "default": [
+            "node_modules",
+            ".git",
+            "dist",
+            "build",
+            "out",
+            ".next",
+            ".nuxt",
+            ".svelte-kit",
+            "coverage",
+            ".dart_tool",
+            ".pub-cache",
+            "Pods",
+            "DerivedData",
+            ".gradle",
+            ".idea",
+            "target",
+            "vendor",
+            ".venv",
+            "venv",
+            "__pycache__",
+            ".mypy_cache",
+            ".pytest_cache",
+            ".turbo",
+            ".cache",
+            ".vscode-test"
+          ]
+        },
+        "inlineGitReview.indexMaxFiles": {
+          "type": "number",
+          "default": 5000,
+          "description": "每個工作區資料夾最多建立幾個檔案的基準。"
+        },
+        "inlineGitReview.snapshotSensitiveFiles": {
+          "type": "boolean",
+          "default": false,
+          "description": "是否也替可能含有密碼、金鑰的檔案（.env、私鑰、憑證、keystore…）建立快照。預設關閉，避免把機密內容複製到擴充的儲存區。"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "watch": "tsc -watch -p .",
+    "test": "tsc -p . && node --test out/test/",
+    "package": "vsce package --no-dependencies",
+    "itest": "tsc -p . && node out/itest/runTest.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "~1.85.0",
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.0.0",
+    "typescript": "^5.6.0"
+  },
+  "enabledApiProposals": [
+    "editorInsets"
+  ]
+}
