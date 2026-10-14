@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
-import { applyHunkToOld, computeHunks, revertHunkInNew, splitLines } from '../src/diff';
+import { applyHunkToOld, computeHunks, reviewedLines, revertHunkInNew, splitLines } from '../src/diff';
 
 function roundTrip(oldText: string, newText: string) {
   const a = splitLines(oldText);
@@ -71,4 +71,25 @@ test('隨機壓力測試', () => {
     for (const h of computeHunks(a, b).reverse()) kept = applyHunkToOld(kept, h);
     assert.deepEqual(kept, b);
   }
+});
+
+test('已審過的行換算到編輯器行號', () => {
+  const head = splitLines('a\nb\nc\nd\ne\n');
+  const index = splitLines('a\nB\nc\nd\ne\n'); // 第 2 行已 Keep
+  // 編輯器：最上面又新增一行（待審），第 2 行的 Keep 結果要往下移一行
+  const doc = splitLines('new\na\nB\nc\nd\ne\n');
+  const pending = computeHunks(index, doc);
+  assert.deepEqual(reviewedLines(head, index, pending), [2]);
+
+  // Keep 之後那行又被改了 → 不再算已審
+  const doc2 = splitLines('a\nB2\nc\nd\ne\n');
+  assert.deepEqual(reviewedLines(head, index, computeHunks(index, doc2)), []);
+
+  // 新檔整份 Keep：每一行都已審（不含結尾換行的空行）
+  const idx3 = splitLines('x\ny\n');
+  assert.deepEqual(reviewedLines([''], idx3, []), [0, 1]);
+
+  // 純刪除：標在刪除點那一行
+  const idx4 = splitLines('a\nc\n');
+  assert.deepEqual(reviewedLines(splitLines('a\nb\nc\n'), idx4, []), [1]);
 });

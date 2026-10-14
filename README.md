@@ -33,7 +33,7 @@
 
 比較基準是 **git index**，所以：
 - AI 或你改了檔案 → 出現綠色高亮 + Keep / Undo 按鈕
-- Keep 後內容進入暫存區，跟 index 一致 → 高亮消失
+- Keep 後內容進入暫存區，跟 index 一致 → 綠色高亮消失，改成**紫色**標示「已審過」（左側細線＋捲軸標記），一眼看出審到哪裡；commit 之後紫色也會消失
 - 在終端機自己 `git add` / `git checkout` 也會自動同步
 
 > `⌘Y` / `⌘N` 只在游標位於某段變更內時生效（不會蓋掉其他地方的「新增檔案」）。
@@ -98,6 +98,7 @@ npm run package   # 產生 .vsix
 - `inlineGitReview.indexExcludeFolders`：建立基準時略過的資料夾
 - `inlineGitReview.indexMaxFiles`：每個工作區資料夾最多建立幾個（預設 5000）
 - `inlineGitReview.snapshotSensitiveFiles`：機密檔案也建立快照（預設關）
+- `inlineGitReview.showReviewed`：已 Keep 的段落用紫色標示（預設開）
 - `inlineGitReview.saveAfterAction`：Keep / Undo 後自動存檔（預設開）
 
 ## 隱私與安全

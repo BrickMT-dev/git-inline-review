@@ -8,7 +8,7 @@ const expectInsets = process.env.EXPECT_INSETS === '1';
 const git = (c: string) => execSync(`git -c core.quotePath=false ${c}`, { cwd: repo }).toString();
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const debug = () =>
-  vscode.commands.executeCommand<{ insetsSupported?: boolean; insetLines: number[]; liveInsets: number; pendingFiles: string[]; fileCounter: { index: number; count: number }; hunks: number; source?: string; indexed: boolean }>(
+  vscode.commands.executeCommand<{ insetsSupported?: boolean; insetLines: number[]; liveInsets: number; pendingFiles: string[]; fileCounter: { index: number; count: number }; hunks: number; source?: string; indexed: boolean; reviewed: number[] }>(
     'inlineGitReview._debugState',
   );
 
@@ -62,9 +62,11 @@ export async function run() {
   await vscode.commands.executeCommand('inlineGitReview.keepHunk');
   await wait(300);
   assert.match(git('diff --cached'), /新的第二行/);
+  assert.deepEqual((await debug()).reviewed, [1], 'Keep 過的第 2 行標成已審（紫色）');
   await cmdZ();
   await wait(300);
   assert.equal(git('diff --cached').trim(), '', '⌘Z 應復原 Keep');
+  assert.deepEqual((await debug()).reviewed, [], '復原後不再是已審');
   assert.equal(await keepLensCount(uri) || (await debug()).insetLines.length, 2, '高亮回來');
 
   // Undo → ⌘Z：文字還原並存檔

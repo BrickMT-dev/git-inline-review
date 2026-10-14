@@ -7,6 +7,7 @@ import {
   computeHunks,
   detectEol,
   revertHunkInNew,
+  reviewedLines,
   splitLines,
 } from './diff';
 import {
@@ -14,6 +15,7 @@ import {
   findRepo,
   guessMode,
   listChangedFiles,
+  readHeadContent,
   readIndexEntry,
   removeFromIndex,
   toGitPath,
@@ -40,11 +42,15 @@ interface Baseline {
   mode: string;
   /** 基準內容（git index 或快照；untracked 時為空字串） */
   indexText: string;
+  /** 「審查前」的內容：git 是 HEAD、快照是最初的內容。跟 indexText 的差異 = 已經 Keep 過的部分 */
+  originText?: string;
 }
 
 interface FileState {
   baseline: Baseline;
   hunks: Hunk[];
+  /** 已審過（已 Keep）的行，用紫色標示 */
+  reviewed: number[];
   version: number;
 }
 
@@ -52,6 +58,8 @@ interface FileState {
 let addedDeco: vscode.TextEditorDecorationType;
 /** 嵌入區塊樣式（鮮豔綠 + 左側粗線） */
 let addedVividDeco: vscode.TextEditorDecorationType;
+/** 已審過（已 Keep）的行 */
+let reviewedDeco: vscode.TextEditorDecorationType;
 let removedDeco: vscode.TextEditorDecorationType;
 let removedAtEndDeco: vscode.TextEditorDecorationType;
 
@@ -94,6 +102,14 @@ export function activate(context: vscode.ExtensionContext) {
     borderStyle: 'solid',
     borderWidth: '0 0 0 3px',
     overviewRulerColor: '#2ecc40',
+    overviewRulerLane: vscode.OverviewRulerLane.Left,
+  });
+  reviewedDeco = vscode.window.createTextEditorDecorationType({
+    isWholeLine: true,
+    borderColor: 'rgba(163, 113, 247, 0.7)',
+    borderStyle: 'solid',
+    borderWidth: '0 0 0 2px',
+    overviewRulerColor: '#a371f7',
     overviewRulerLane: vscode.OverviewRulerLane.Left,
   });
   // 被刪掉的行：VS Code API 無法插入「虛擬行」，所以用紅色上框線 + 行尾幽靈文字標示，完整內容在 hover / CodeLens
@@ -173,6 +189,7 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     addedDeco,
     addedVividDeco,
+    reviewedDeco,
     removedDeco,
     removedAtEndDeco,
     statusItem,
@@ -216,6 +233,7 @@ export function activate(context: vscode.ExtensionContext) {
         indexed,
         hunks: ed ? states.get(ed.document.uri.toString())?.hunks.length ?? 0 : 0,
         source: ed ? states.get(ed.document.uri.toString())?.baseline.source : undefined,
+        reviewed: ed ? states.get(ed.document.uri.toString())?.reviewed ?? [] : [],
       };
     });
   }
@@ -315,7 +333,7 @@ async function rebuildBaselines() {
     for (const abs of snapshots.pathsUnder(realpath(folder.uri.fsPath))) {
       const disk = readTextFile(abs);
       if (disk === undefined) snapshots.delete(abs);
-      else snapshots.set(abs, disk);
+      else snapshots.set(abs, disk, false, true);
     }
   }
   baselines.clear();
@@ -353,7 +371,8 @@ async function loadBaseline(uri: vscode.Uri): Promise<Baseline | undefined> {
     const git = { source: 'git' as const, absPath, root: repo.root, gitDir: repo.gitDir, rel };
     if (entry.kind === 'tracked') {
       snapshots.delete(absPath); // 改由 git 管了，舊快照作廢
-      return { ...git, untracked: false, mode: entry.mode, indexText: entry.content };
+      const originText = await readHeadContent(repo.root, rel);
+      return { ...git, untracked: false, mode: entry.mode, indexText: entry.content, originText };
     }
     if (entry.kind === 'untracked') {
       if (!cfg().get<boolean>('showUntracked', true)) return undefined;
@@ -375,7 +394,7 @@ function snapshotBaseline(absPath: string, root: string): Baseline | undefined {
   if (isSensitiveFile(absPath) && !cfg().get<boolean>('snapshotSensitiveFiles', false)) return undefined;
   const common = { source: 'snapshot' as const, absPath, root, rel: toGitPath(root, absPath), gitDir: '', mode: '' };
   // 建立基準之後才出現的新檔：整份都是新增（Undo 會刪檔）
-  if (snapshots.isNew(absPath)) return { ...common, untracked: true, indexText: '' };
+  if (snapshots.isNew(absPath)) return { ...common, untracked: true, indexText: '', originText: '' };
   let content = snapshots.get(absPath);
   if (content === undefined) {
     content = readTextFile(absPath);
@@ -391,6 +410,7 @@ function snapshotBaseline(absPath: string, root: string): Baseline | undefined {
     untracked: false,
     mode: '',
     indexText: content,
+    originText: snapshots.original(absPath),
   };
 }
 
@@ -465,7 +485,11 @@ async function refresh(doc: vscode.TextDocument): Promise<FileState | undefined>
   }
   const oldLines = baseline.untracked ? [''] : splitLines(baseline.indexText);
   const hunks = computeHunks(oldLines, splitLines(doc.getText()));
-  const state: FileState = { baseline, hunks, version: doc.version };
+  const reviewed =
+    cfg().get<boolean>('showReviewed', true) && !baseline.untracked && baseline.originText !== undefined
+      ? reviewedLines(splitLines(baseline.originText), oldLines, hunks)
+      : [];
+  const state: FileState = { baseline, hunks, reviewed, version: doc.version };
   const prevCount = states.get(key)?.hunks.length ?? 0;
   states.set(key, state);
   if ((prevCount === 0) !== (hunks.length === 0)) schedulePendingRefresh(200);
@@ -532,6 +556,10 @@ function renderDecorations(ed: vscode.TextEditor) {
   }
   // 有 inset 時，被刪除的行改由 inset 畫成紅色整行，不再需要幽靈文字
   const useInsets = renderer.supported === true;
+  ed.setDecorations(
+    reviewedDeco,
+    (state?.reviewed ?? []).filter((l) => l < lineCount).map((l) => ({ range: new vscode.Range(l, 0, l, 0) })),
+  );
   ed.setDecorations(addedDeco, useInsets ? [] : added);
   ed.setDecorations(addedVividDeco, useInsets ? added : []);
   ed.setDecorations(removedDeco, useInsets ? [] : removed);
@@ -947,7 +975,10 @@ async function stage(doc: vscode.TextDocument, baseline: Baseline, content: stri
   if (baseline.source === 'snapshot') snapshots.set(baseline.absPath, content);
   else await writeIndexContent(baseline.root, baseline.rel, content, baseline.mode);
   // 直接更新快取的基準，讓高亮立刻消失，不必等 watcher
-  baselines.set(doc.uri.toString(), Promise.resolve({ ...baseline, untracked: false, indexText: content }));
+  baselines.set(
+    doc.uri.toString(),
+    Promise.resolve({ ...baseline, untracked: false, indexText: content, originText: baseline.originText ?? '' }),
+  );
   await refresh(doc);
   await maybeSave(doc);
   recordAction({

@@ -165,3 +165,38 @@ export function revertHunkInNew(newLines: string[], hunk: Hunk): string[] {
     ...newLines.slice(hunk.newStart + hunk.newLines.length),
   ];
 }
+
+/**
+ * 把舊內容（index）的行號換算成新內容（編輯器）的行號。
+ * 該行落在某段待審變更裡（Keep 之後又被改過）就回傳 -1。
+ */
+export function mapOldLine(pending: Hunk[], line: number): number {
+  let delta = 0;
+  for (const h of pending) {
+    if (line < h.oldStart) break;
+    if (line < h.oldStart + h.oldLines.length) return -1;
+    delta += h.newLines.length - h.oldLines.length;
+  }
+  return line + delta;
+}
+
+/**
+ * 已審過（已 Keep）的行：origin（HEAD 或最初的快照）→ index 之間的變更，
+ * 換算到目前編輯器中的行號。純刪除的地方回傳刪除點所在的那一行。
+ */
+export function reviewedLines(originLines: string[], indexLines: string[], pending: Hunk[]): number[] {
+  const out = new Set<number>();
+  const lastIndexLine = indexLines.length - 1;
+  for (const h of computeHunks(originLines, indexLines)) {
+    const lines = h.newLines.length
+      ? Array.from({ length: h.newLines.length }, (_, i) => h.newStart + i)
+      : [Math.min(h.newStart, lastIndexLine)];
+    for (const l of lines) {
+      // 結尾換行造成的最後一個空行不標
+      if (l === lastIndexLine && indexLines[l] === '' && h.newLines.length) continue;
+      const m = mapOldLine(pending, l);
+      if (m >= 0) out.add(m);
+    }
+  }
+  return [...out].sort((a, b) => a - b);
+}

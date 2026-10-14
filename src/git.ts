@@ -90,6 +90,16 @@ export async function readIndexEntry(root: string, rel: string): Promise<IndexEn
   return { kind: 'tracked', mode, sha, content };
 }
 
+/** 讀取檔案在 HEAD（最近一次 commit）中的內容；HEAD 裡沒有這個檔就回空字串，二進位回 undefined */
+export async function readHeadContent(root: string, rel: string): Promise<string | undefined> {
+  try {
+    const content = await runGit(root, ['cat-file', '--filters', `HEAD:${rel}`]);
+    return content.includes('\0') ? undefined : content;
+  } catch {
+    return ''; // 新檔（或 repo 還沒有任何 commit）
+  }
+}
+
 /** 把指定內容寫進 index（等同於只 add 這份內容，不碰工作目錄的檔案） */
 export async function writeIndexContent(root: string, rel: string, content: string, mode: string) {
   const sha = (await runGit(root, ['hash-object', '-w', '--stdin', `--path=${rel}`], content)).trim();

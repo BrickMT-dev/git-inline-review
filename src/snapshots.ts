@@ -29,10 +29,12 @@ interface SnapshotFile {
   path: string;
   content: string;
   isNew?: boolean;
+  /** 最初建立快照時的內容：跟目前的基準比，就知道哪些已經 Keep 過 */
+  original?: string;
 }
 
 export class SnapshotStore {
-  private readonly cache = new Map<string, { content: string; isNew: boolean }>();
+  private readonly cache = new Map<string, { content: string; isNew: boolean; original: string }>();
   /** 磁碟內容跟快照不同的檔案（待檢查），增量維護，避免每次都重讀所有檔案 */
   private readonly dirty = new Set<string>();
 
@@ -43,7 +45,11 @@ export class SnapshotStore {
       try {
         const data = JSON.parse(fs.readFileSync(path.join(dir, name), 'utf8')) as SnapshotFile;
         if (typeof data.path === 'string' && typeof data.content === 'string') {
-          this.cache.set(data.path, { content: data.content, isNew: !!data.isNew });
+          this.cache.set(data.path, {
+            content: data.content,
+            isNew: !!data.isNew,
+            original: data.original ?? (data.isNew ? '' : data.content),
+          });
         }
       } catch {
         /* 壞掉的快照直接略過 */
@@ -63,9 +69,16 @@ export class SnapshotStore {
     return this.cache.get(absPath)?.isNew ?? false;
   }
 
-  set(absPath: string, content: string, isNew = false) {
-    this.cache.set(absPath, { content, isNew });
-    const data: SnapshotFile = { path: absPath, content, isNew: isNew || undefined };
+  original(absPath: string): string | undefined {
+    return this.cache.get(absPath)?.original;
+  }
+
+  /** 更新基準；第一次建立時順便記下 original（resetOriginal 用於「以目前內容重設」） */
+  set(absPath: string, content: string, isNew = false, resetOriginal = false) {
+    const prev = this.cache.get(absPath);
+    const original = !prev || resetOriginal ? (isNew ? '' : content) : prev.original;
+    this.cache.set(absPath, { content, isNew, original });
+    const data: SnapshotFile = { path: absPath, content, isNew: isNew || undefined, original };
     fs.writeFileSync(this.file(absPath), JSON.stringify(data));
     this.check(absPath);
   }
