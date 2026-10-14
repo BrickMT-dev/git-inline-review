@@ -104,13 +104,14 @@ export function activate(context: vscode.ExtensionContext) {
     overviewRulerColor: '#2ecc40',
     overviewRulerLane: vscode.OverviewRulerLane.Left,
   });
+  // 捲軸放「中欄」：左欄是 VS Code 內建的 git 標記（會畫在上面蓋住）、右欄是錯誤／提示
   reviewedDeco = vscode.window.createTextEditorDecorationType({
     isWholeLine: true,
-    borderColor: 'rgba(163, 113, 247, 0.7)',
+    borderColor: 'rgba(179, 140, 255, 0.85)',
     borderStyle: 'solid',
-    borderWidth: '0 0 0 2px',
-    overviewRulerColor: '#a371f7',
-    overviewRulerLane: vscode.OverviewRulerLane.Left,
+    borderWidth: '0 0 0 3px',
+    overviewRulerColor: '#b38cff',
+    overviewRulerLane: vscode.OverviewRulerLane.Center,
   });
   // 被刪掉的行：VS Code API 無法插入「虛擬行」，所以用紅色上框線 + 行尾幽靈文字標示，完整內容在 hover / CodeLens
   removedDeco = vscode.window.createTextEditorDecorationType({
