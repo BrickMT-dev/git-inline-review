@@ -2,7 +2,7 @@
   "name": "git-inline-review",
   "displayName": "Git Inline Review",
   "description": "在檔案內逐段審閱未暫存的 git 變更：Keep = git add，Undo = 還原。",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "publisher": "local",
   "license": "MIT",
   "repository": {

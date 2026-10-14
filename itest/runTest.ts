@@ -14,7 +14,12 @@ async function main() {
     fs.writeFileSync(path.join(repo, 'demo.txt'), 'line1\n舊的第二行\nline3\nline4\nline5\n');
     fs.writeFileSync(path.join(repo, 'other.txt'), 'a\nb\n');
     fs.writeFileSync(path.join(repo, '.gitignore'), 'local-only.txt\nignored_dir/\nnode_modules/\n.env\n');
+    // submodule：之後在裡面多一個 commit，讓 superproject 看到指標變動（不能被當成待檢查的檔案）
+    const subSrc = fs.mkdtempSync(path.join(os.tmpdir(), 'inline-review-sub-'));
+    execSync('git init -q && git config user.email t@t && git config user.name t && echo v1 > lib.txt && git add . && git commit -qm v1', { cwd: subSrc });
+    sh(`git -c protocol.file.allow=always submodule add -q "${subSrc}" sub`);
     sh('git add . && git commit -qm init');
+    execSync('git config user.email t@t && git config user.name t && echo v2 > lib.txt && git commit -qam v2', { cwd: path.join(repo, 'sub') });
     // 被 git 排除的檔案（開專案時應該替符合副檔名、且不在 node_modules 的檔案建立基準）
     fs.writeFileSync(path.join(repo, 'local-only.txt'), 'k1\nk2\n');
     fs.writeFileSync(path.join(repo, '.env'), 'API_KEY=old\n'); // 機密檔：預設不能被複製成快照

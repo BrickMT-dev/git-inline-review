@@ -128,11 +128,12 @@ export async function removeFromIndex(root: string, rel: string) {
 export async function listChangedFiles(root: string, includeUntracked: boolean): Promise<string[]> {
   const files = new Set<string>();
   // numstat -z 格式："<added>\t<deleted>\t<path>\0"；二進位檔的行數為 "-"
-  const numstat = await runGit(root, ['diff', '--numstat', '-z', '--no-renames']);
+  // submodule 只是一個指向 commit 的指標，不是能逐行審的檔案，直接略過
+  const numstat = await runGit(root, ['diff', '--numstat', '-z', '--no-renames', '--ignore-submodules=all']);
   for (const rec of numstat.split('\0')) {
     const m = /^(\S+)\t(\S+)\t(.+)$/.exec(rec);
     if (!m || m[1] === '-') continue;
-    if (fs.existsSync(path.join(root, m[3]))) files.add(m[3]);
+    if (isRegularFile(path.join(root, m[3]))) files.add(m[3]); // 已刪除的檔案、資料夾都不算
   }
   if (includeUntracked) {
     const others = await runGit(root, ['ls-files', '--others', '--exclude-standard', '-z']);
@@ -144,6 +145,14 @@ export async function listChangedFiles(root: string, includeUntracked: boolean):
       .forEach((f) => files.add(f));
   }
   return [...files];
+}
+
+function isRegularFile(absPath: string) {
+  try {
+    return fs.statSync(absPath).isFile();
+  } catch {
+    return false;
+  }
 }
 
 /** 常見的二進位副檔名：直接判定，不必讀檔 */

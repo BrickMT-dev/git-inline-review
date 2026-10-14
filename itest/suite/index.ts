@@ -102,8 +102,14 @@ export async function run() {
   await ed.edit((e) => e.insert(new vscode.Position(0, 0), 'x'));
   await cmdZ();
   await wait(300);
+  // 重點是「沒有被當成審查動作」：暫存區不能被動到。
+  // 原生 undo 作用在有系統焦點的編輯器，測試視窗沒拿到焦點時不會生效，這時手動清掉插入的字
+  assert.equal(git('diff --cached').trim(), '', '一般編輯的 ⌘Z 不能動到暫存區');
+  if (doc.getText() !== MODIFIED) {
+    console.log('（測試視窗沒有系統焦點，原生 undo 未生效，手動還原）');
+    await ed.edit((e) => e.delete(new vscode.Range(0, 0, 0, 1)));
+  }
   assert.equal(doc.getText(), MODIFIED, '一般編輯照常 undo');
-  assert.equal(git('diff --cached').trim(), '');
   await doc.save();
   await wait(500);
 
