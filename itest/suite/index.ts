@@ -221,5 +221,19 @@ export async function run() {
   assert.ok(!(await debug()).pendingFiles.includes('ignored_dir/new.yaml'), 'Keep File 後不再待檢查');
   assert.doesNotMatch(git('status --short'), /new\.yaml/, '沒有被加進 git');
 
+
+  // ───── 看專案外的檔案時，待檢查清單不能被換掉，‹ › 仍可跳回專案 ─────
+  const before = (await debug()).pendingFiles;
+  assert.ok(before.length > 0);
+  const outsideDoc = await vscode.workspace.openTextDocument(vscode.Uri.file(process.env.OUTSIDE_FILE!));
+  await vscode.window.showTextDocument(outsideDoc, { preview: false });
+  await wait(1000);
+  st = await debug();
+  assert.deepEqual(st.pendingFiles, before, '打開專案外的檔案，清單不變');
+  assert.deepEqual(st.fileCounter, { index: 0, count: before.length }, '狀態列顯示 –/n');
+  await vscode.commands.executeCommand('inlineGitReview.nextFile');
+  await wait(500);
+  assert.ok(vscode.window.activeTextEditor!.document.uri.fsPath.includes(path.basename(repo)), '› 跳回專案裡的待檢查檔案');
+
   console.log('✅ 整合測試全部通過');
 }

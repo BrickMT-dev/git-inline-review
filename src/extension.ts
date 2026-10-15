@@ -659,8 +659,6 @@ function activeRel(root: string): string | undefined {
 function updateFileStatus() {
   const files = enabled() ? pending?.files ?? [] : [];
   const current = pending && activeRel(pending.root);
-  const others = files.filter((f) => f !== current);
-  vscode.commands.executeCommand('setContext', 'inlineGitReview.hasOtherFiles', others.length > 0);
   if (files.length === 0) {
     fileCounter = { index: 0, count: 0 };
     fileStatusItem.hide();
@@ -682,18 +680,30 @@ function schedulePendingRefresh(delay: number) {
   }, delay);
 }
 
-/** 目前要看的 repo：優先用作用中編輯器所在的 repo，否則用第一個工作區資料夾 */
+/** 目前審查中的 repo：看專案外的檔案（例如跳到定義打開 SDK 原始碼）時沿用，不會被換掉 */
+let reviewRoot: string | undefined;
+
+/** 這個 repo 跟工作區有沒有關係（在工作區資料夾裡，或包含工作區資料夾） */
+function isWorkspaceRoot(root: string) {
+  const folders = vscode.workspace.workspaceFolders ?? [];
+  if (folders.length === 0) return true; // 只開單一檔案時沒有工作區，照原本行為
+  return folders.some((f) => {
+    const dir = realpath(f.uri.fsPath);
+    return dir === root || dir.startsWith(root + path.sep) || root.startsWith(dir + path.sep);
+  });
+}
+
+/** 目前要看的 repo：作用中編輯器所在的 repo（限工作區相關的），否則沿用上次的、或第一個工作區資料夾 */
 async function currentRoot(): Promise<string | undefined> {
   const doc = vscode.window.activeTextEditor?.document;
   if (doc?.uri.scheme === 'file') {
-    const b = await getBaseline(doc.uri);
-    if (b) return b.root;
-    const repo = await findRepo(doc.uri.fsPath);
-    if (repo) return repo.root;
+    const root = (await getBaseline(doc.uri))?.root ?? (await findRepo(doc.uri.fsPath))?.root;
+    if (root && isWorkspaceRoot(root)) return (reviewRoot = root);
   }
+  if (reviewRoot) return reviewRoot;
   const folder = vscode.workspace.workspaceFolders?.[0];
   if (!folder) return undefined;
-  return (await findRepo(path.join(folder.uri.fsPath, '_')))?.root ?? realpath(folder.uri.fsPath);
+  return (reviewRoot = (await findRepo(path.join(folder.uri.fsPath, '_')))?.root ?? realpath(folder.uri.fsPath));
 }
 
 async function refreshPending(root?: string) {

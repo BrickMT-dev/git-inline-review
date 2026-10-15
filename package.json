@@ -2,7 +2,7 @@
   "name": "git-inline-review",
   "displayName": "Git Inline Review",
   "description": "在檔案內逐段審閱未暫存的 git 變更：Keep = git add，Undo = 還原。",
-  "version": "0.10.2",
+  "version": "0.11.0",
   "publisher": "local",
   "license": "MIT",
   "repository": {
@@ -155,12 +155,12 @@
         },
         {
           "command": "inlineGitReview.bar.prevFile",
-          "when": "inlineGitReview.hasOtherFiles",
+          "when": "config.inlineGitReview.enabled",
           "group": "navigation@100003"
         },
         {
           "command": "inlineGitReview.bar.nextFile",
-          "when": "inlineGitReview.hasOtherFiles",
+          "when": "config.inlineGitReview.enabled",
           "group": "navigation@100005"
         },
         {
@@ -255,12 +255,12 @@
       {
         "command": "inlineGitReview.nextFile",
         "key": "alt+shift+]",
-        "when": "editorTextFocus && inlineGitReview.hasOtherFiles"
+        "when": "editorTextFocus && config.inlineGitReview.enabled"
       },
       {
         "command": "inlineGitReview.prevFile",
         "key": "alt+shift+[",
-        "when": "editorTextFocus && inlineGitReview.hasOtherFiles"
+        "when": "editorTextFocus && config.inlineGitReview.enabled"
       },
       {
         "command": "inlineGitReview.undoLastReview",

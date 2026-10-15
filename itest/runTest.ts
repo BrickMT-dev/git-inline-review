@@ -39,6 +39,9 @@ async function main() {
     const userDir = fs.mkdtempSync(path.join(os.tmpdir(), 'inline-review-user-'));
     fs.mkdirSync(path.join(userDir, 'User'));
     fs.writeFileSync(path.join(userDir, 'User', 'settings.json'), JSON.stringify({ 'inlineGitReview.useInsets': insets }));
+    // 專案外、不相關的另一個 repo（模擬「跳到定義」打開 SDK／套件原始碼）
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'inline-review-outside-'));
+    execSync('git init -q && git config user.email t@t && git config user.name t && echo sdk > sdk.dart && git add . && git commit -qm sdk', { cwd: outside });
     console.log(`\n=== ${insets ? 'Inset 模式' : 'CodeLens 模式'} ===`);
     await runTests({
       vscodeExecutablePath: process.argv[2],
@@ -50,7 +53,7 @@ async function main() {
         '--user-data-dir',
         userDir,
       ],
-      extensionTestsEnv: { TEST_REPO: repo, EXPECT_INSETS: insets ? '1' : '0' },
+      extensionTestsEnv: { TEST_REPO: repo, EXPECT_INSETS: insets ? '1' : '0', OUTSIDE_FILE: path.join(outside, 'sdk.dart') },
     });
   }
 }
